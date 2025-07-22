@@ -7,6 +7,8 @@ from PIL import Image
 import pytesseract
 import fitz  # PyMuPDF
 import requests
+import tempfile # For creating temporary directories safely
+import shutil # For safely removing directories
 
 # The 'openai' library is now used for OpenAI calls.
 # It will be imported dynamically to provide a clear error message if not installed.
@@ -186,7 +188,6 @@ class OcrLlmApp:
         self.root.after(0, self.update_progress, "Converting PDF to images...", 10)
         doc = fitz.open(pdf_path)
         
-        # Validate page range against the document's page count
         total_pages = len(doc)
         if start_page is None: start_page = 1
         if end_page is None: end_page = total_pages
@@ -195,16 +196,16 @@ class OcrLlmApp:
             raise ValueError(f"Invalid page range. The document has {total_pages} pages.")
             
         images = []
-        temp_dir = "temp_ocr_images"
-        os.makedirs(temp_dir, exist_ok=True)
+        # Create a temporary directory in the system's temp location
+        temp_dir = tempfile.mkdtemp(prefix="ocr_images_")
         
-        # Loop through the specified page range (adjusting for 0-based index)
         for i in range(start_page - 1, end_page):
             pix = doc[i].get_pixmap(dpi=300)
             img_path = os.path.join(temp_dir, f"page_{i}.png")
             pix.save(img_path)
             images.append(img_path)
-        return images
+        # Return the list of images and the path to the temporary directory for later cleanup
+        return images, temp_dir
 
     def perform_ocr(self, images, engine):
         """Perform OCR on a list of images using the selected engine."""
@@ -272,27 +273,20 @@ class OcrLlmApp:
     def save_output(self, text):
         """Save the final output to a text file."""
         self.root.after(0, self.update_progress, "Saving output...", 95)
-        output_path = "ocr_llm_output.txt"
+        # Save output to a more standard location like the user's Desktop
+        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        output_path = os.path.join(desktop_path, "ocr_llm_output.txt")
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(text)
         return output_path
 
-    def cleanup_images(self, image_paths):
-        """Delete the temporary image files."""
-        temp_dir = "temp_ocr_images"
-        for path in image_paths:
-            try:
-                os.remove(path)
-            except OSError as e:
-                print(f"Error removing file {path}: {e}")
-        try:
-            os.rmdir(temp_dir)
-        except OSError as e:
-            print(f"Error removing directory {temp_dir}: {e}")
+    def cleanup_temp_dir(self, temp_dir_path):
+        """Safely remove the temporary directory and all its contents."""
+        if temp_dir_path and os.path.isdir(temp_dir_path):
+            shutil.rmtree(temp_dir_path)
 
     def process_all(self):
         """Validate inputs and start the processing thread."""
-        # --- Input Validation ---
         if not self.pdf_path.get():
             messagebox.showwarning("Missing Input", "Please select a PDF document.")
             return
@@ -306,7 +300,6 @@ class OcrLlmApp:
             messagebox.showwarning("Missing Input", "Please enter a prompt.")
             return
             
-        # --- Page Range Validation ---
         try:
             start_str = self.start_page.get()
             end_str = self.end_page.get()
@@ -323,15 +316,15 @@ class OcrLlmApp:
             messagebox.showwarning("Invalid Input", "Page numbers must be integers.")
             return
 
-        # --- Start Worker Thread ---
         worker_thread = threading.Thread(target=self._processing_worker, args=(start, end))
         worker_thread.start()
 
     def _processing_worker(self, start_page, end_page):
         """The actual processing logic that runs in a separate thread."""
+        temp_dir_path = None
         try:
-            # Step 1: Convert PDF to Images with page range
-            images = self.convert_pdf_to_images(self.pdf_path.get(), start_page, end_page)
+            # Step 1: Convert PDF to Images, getting back the image paths and the temp directory path
+            images, temp_dir_path = self.convert_pdf_to_images(self.pdf_path.get(), start_page, end_page)
             
             if not images:
                 messagebox.showinfo("Information", "No pages found in the specified range to process.")
@@ -351,7 +344,7 @@ class OcrLlmApp:
             output_file = self.save_output(final_output)
             
             self.root.after(0, self.update_progress, "Done!", 100)
-            messagebox.showinfo("Success", f"Processing complete! Output saved to:\n{os.path.abspath(output_file)}")
+            messagebox.showinfo("Success", f"Processing complete! Output saved to:\n{output_file}")
 
         except requests.exceptions.HTTPError as e:
             error_message = f"An API error occurred (Status code: {e.response.status_code})."
@@ -364,7 +357,6 @@ class OcrLlmApp:
             messagebox.showerror("API Error", error_message)
             self.root.after(0, self.update_progress, "Failed", 0)
         except Exception as e:
-            # Catching specific OpenAI errors if the library is imported
             try:
                 from openai import APIError
                 if isinstance(e, APIError):
@@ -375,9 +367,9 @@ class OcrLlmApp:
                  messagebox.showerror("Error", f"An unexpected error occurred:\n{e}")
             self.root.after(0, self.update_progress, "Failed", 0)
         finally:
-            # Step 5: Cleanup
-            if 'images' in locals():
-                self.cleanup_images(images)
+            # Step 5: Cleanup the temporary directory
+            if temp_dir_path:
+                self.cleanup_temp_dir(temp_dir_path)
             # Reset progress bar after a delay
             self.root.after(2000, self.update_progress, "Ready", 0)
 
