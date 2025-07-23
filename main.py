@@ -1,3 +1,8 @@
+# This code is cross platform.
+# To run the build, do as follows:
+# For macOS: "pyinstaller --name="OCR-LLM Processor" --windowed --icon="YourIcon.icns" --add-data="/opt/homebrew/opt/tesseract/share/tessdata:tessdata" main.py")
+# For Windows: "pyinstaller --name="OCR-LLM Processor" --windowed --icon="YourIcon.ico" --add-data="C:\Program Files\Tesseract-OCR\tessdata;tessdata" main.py")
+
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import threading
@@ -46,19 +51,19 @@ def configure_tesseract_path():
                     return
     # When running as a normal script, pytesseract often finds it if it's in the system's PATH.
 
-# ========== APPLICATION CLASS ==========
+# APPLICATION CLASS
 
 class OcrLlmApp:
     def __init__(self, root):
-        """Initialize the application's GUI."""
+        #Initialize the application's GUI.
         self.root = root
         self.root.title("OCR + LLM Document Processor")
         self.root.geometry("800x900")
 
-        # Use the sv-ttk theme for a modern, happier look
+        # Use the sv-ttk theme
         sv_ttk.set_theme("light")
 
-        # --- Instance Variables ---
+        # Instance Variables
         self.pdf_path = tk.StringVar()
         self.output_path = tk.StringVar()
         self.json_key_path = tk.StringVar()

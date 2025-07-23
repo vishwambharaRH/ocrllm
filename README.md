@@ -7,4 +7,4 @@ This application is an OCR+LLM proofreading/editing pipeline for the digitisatio
 For macOS, install the app.zip file, for Windows, install the .exe file. Navigate to the release window.
 
 ## Warning
-This build is not fully read yet, some bugs with Tesseract are expected. These bugs will be rectified in future releases.
+This build is not fully ready yet, some bugs with Tesseract are expected. These bugs will be rectified in future releases.
