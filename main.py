@@ -4,7 +4,7 @@
 # For Windows: "pyinstaller --name="OCR-LLM Processor" --windowed --icon="YourIcon.ico" --add-data="C:\Program Files\Tesseract-OCR\tessdata;tessdata" main.py")
 
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk, font
 import threading
 import os
 import json
@@ -25,45 +25,47 @@ import time # To track elapsed time
 # It will be imported dynamically if the user selects it.
 
 # ========== TESSERACT PATH CONFIGURATION ==========
-# This function helps the packaged app find the Tesseract executable.
 def configure_tesseract_path():
     """
-    Finds and sets the path for the Tesseract executable, especially for a packaged app.
-    This checks for common installation paths on both macOS and Windows.
+    Finds and sets the path for the Tesseract executable. When the app is bundled
+    with PyInstaller, it points to the Tesseract engine that has been included
+    inside the application bundle itself.
     """
-    # Path when running from a PyInstaller bundle
+    # If the app is running as a bundled executable (created by PyInstaller)
     if getattr(sys, 'frozen', False):
-        if sys.platform == "win32":
-            # Default installation path for Tesseract on Windows
-            tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-            if os.path.exists(tesseract_path):
-                pytesseract.pytesseract.tesseract_cmd = tesseract_path
-                return
-        elif sys.platform == "darwin": # macOS
-            # Common Homebrew paths for Tesseract on macOS
-            tesseract_paths = [
-                '/opt/homebrew/bin/tesseract', # For Apple Silicon Macs
-                '/usr/local/bin/tesseract'     # For Intel Macs
-            ]
-            for path in tesseract_paths:
-                if os.path.exists(path):
-                    pytesseract.pytesseract.tesseract_cmd = path
-                    return
-    # When running as a normal script, pytesseract often finds it if it's in the system's PATH.
+        # The `_MEIPASS` attribute is a temporary directory created by PyInstaller at runtime
+        bundle_dir = sys._MEIPASS
 
-# APPLICATION CLASS
+        # Set the path to the Tesseract executable within the bundle
+        if sys.platform == "win32":
+            tesseract_path = os.path.join(bundle_dir, 'tesseract', 'tesseract.exe')
+        elif sys.platform == "darwin":
+            tesseract_path = os.path.join(bundle_dir, 'tesseract', 'tesseract')
+        
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
+        # Also, tell Tesseract where to find its data files (which we also bundled)
+        tessdata_dir = os.path.join(bundle_dir, 'tessdata')
+        os.environ['TESSDATA_PREFIX'] = tessdata_dir
+    
+    # If running as a normal script, pytesseract will try to find Tesseract in the system's PATH
+    # or we rely on the user having it installed in a standard location.
+
+# ========== APPLICATION CLASS ==========
 
 class OcrLlmApp:
     def __init__(self, root):
-        #Initialize the application's GUI.
+        """Initialize the application's GUI."""
         self.root = root
         self.root.title("OCR + LLM Document Processor")
+        # Set initial and minimum window size
         self.root.geometry("800x900")
+        self.root.minsize(800, 600) # Set a more flexible minimum height
 
-        # Use the sv-ttk theme
+        # Use the sv-ttk theme for a modern, happier look
         sv_ttk.set_theme("light")
 
-        # Instance Variables
+        # --- Instance Variables ---
         self.pdf_path = tk.StringVar()
         self.output_path = tk.StringVar()
         self.json_key_path = tk.StringVar()
@@ -83,139 +85,147 @@ class OcrLlmApp:
 
         # --- Main Layout ---
         self.main_frame = ttk.Frame(self.root, padding="25 25 25 25")
+        # Configure grid layout for resizing
         self.main_frame.pack(expand=True, fill=tk.BOTH)
+        self.main_frame.columnconfigure(0, weight=1)
+        self.main_frame.rowconfigure(2, weight=1) # Allow the LLM frame row to expand/disappear
 
         self._create_widgets()
         self.update_api_key_label()
         configure_tesseract_path()
 
     def _create_widgets(self):
-        """Create and arrange all the GUI widgets."""
+        """Create and arrange all the GUI widgets with a polished layout."""
+        # --- Default Font Setup ---
+        default_font = font.nametofont("TkDefaultFont")
+        default_font.configure(size=11, family="Segoe UI" if sys.platform == "win32" else "Helvetica Neue")
+        self.root.option_add("*Font", default_font)
+
+        # --- Styles ---
+        style = ttk.Style()
+        style.configure("Accent.TButton", font=(default_font.cget("family"), 11, "bold"), padding=6)
+        style.configure("Danger.TButton", font=(default_font.cget("family"), 11, "bold"), padding=6, foreground="white", background="#dc3545")
+        style.map("Danger.TButton", background=[("active", "#c82333")])
+
         # --- Configuration Frame ---
         config_frame = ttk.LabelFrame(self.main_frame, text="Configuration", padding=20)
-        config_frame.pack(fill=tk.X, pady=(0, 20))
+        config_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
         config_frame.columnconfigure(1, weight=1)
 
         # PDF Upload
-        ttk.Label(config_frame, text="PDF Document:").grid(row=0, column=0, sticky=tk.W, pady=8)
+        ttk.Label(config_frame, text="PDF Document:").grid(row=0, column=0, sticky=tk.W, pady=6)
         pdf_entry = ttk.Entry(config_frame, textvariable=self.pdf_path, state="readonly", width=60)
-        pdf_entry.grid(row=0, column=1, columnspan=2, sticky=tk.EW, padx=5, pady=8)
-        ttk.Button(config_frame, text="Browse...", command=self.select_pdf).grid(row=0, column=3, padx=5, pady=8)
-        
+        pdf_entry.grid(row=0, column=1, columnspan=2, sticky=tk.EW, padx=6, pady=6)
+        ttk.Button(config_frame, text="Browse...", command=self.select_pdf).grid(row=0, column=3, padx=6, pady=6)
+
         # Target Save File
-        ttk.Label(config_frame, text="Output File:").grid(row=1, column=0, sticky=tk.W, pady=8)
+        ttk.Label(config_frame, text="Output File:").grid(row=1, column=0, sticky=tk.W, pady=6)
         output_entry = ttk.Entry(config_frame, textvariable=self.output_path, state="readonly", width=60)
-        output_entry.grid(row=1, column=1, columnspan=2, sticky=tk.EW, padx=5, pady=8)
-        ttk.Button(config_frame, text="Save As...", command=self.select_output_file).grid(row=1, column=3, padx=5, pady=8)
+        output_entry.grid(row=1, column=1, columnspan=2, sticky=tk.EW, padx=6, pady=6)
+        ttk.Button(config_frame, text="Save As...", command=self.select_output_file).grid(row=1, column=3, padx=6, pady=6)
 
         # Page Range Selection
         page_range_frame = ttk.Frame(config_frame)
-        page_range_frame.grid(row=2, column=1, columnspan=3, sticky=tk.EW, padx=5, pady=8)
-        ttk.Label(config_frame, text="Page Range:").grid(row=2, column=0, sticky=tk.W, pady=8)
-        
+        page_range_frame.grid(row=2, column=1, columnspan=3, sticky=tk.EW, padx=6, pady=6)
+        ttk.Label(config_frame, text="Page Range:").grid(row=2, column=0, sticky=tk.W, pady=6)
+
         ttk.Label(page_range_frame, text="Start:").pack(side=tk.LEFT, padx=(0, 5))
-        start_page_entry = ttk.Entry(page_range_frame, textvariable=self.start_page, width=5)
-        start_page_entry.pack(side=tk.LEFT)
-        
+        ttk.Entry(page_range_frame, textvariable=self.start_page, width=5).pack(side=tk.LEFT)
+
         ttk.Label(page_range_frame, text="End:").pack(side=tk.LEFT, padx=(10, 5))
-        end_page_entry = ttk.Entry(page_range_frame, textvariable=self.end_page, width=5)
-        end_page_entry.pack(side=tk.LEFT)
-        
-        ttk.Label(page_range_frame, text="(leave blank for all pages)").pack(side=tk.LEFT, padx=(10,0))
+        ttk.Entry(page_range_frame, textvariable=self.end_page, width=5).pack(side=tk.LEFT)
+
+        ttk.Label(page_range_frame, text="(leave blank for all pages)").pack(side=tk.LEFT, padx=(10, 0))
 
         # OCR Engine
-        ttk.Label(config_frame, text="OCR Engine:").grid(row=3, column=0, sticky=tk.W, pady=8)
+        ttk.Label(config_frame, text="OCR Engine:").grid(row=3, column=0, sticky=tk.W, pady=6)
         self.ocr_dropdown = ttk.Combobox(config_frame, values=["Tesseract", "Google Vision"], state="readonly")
         self.ocr_dropdown.set("Tesseract")
-        self.ocr_dropdown.grid(row=3, column=1, columnspan=3, sticky=tk.W, padx=5, pady=8)
+        self.ocr_dropdown.grid(row=3, column=1, columnspan=3, sticky=tk.W, padx=6, pady=6)
         self.ocr_dropdown.bind("<<ComboboxSelected>>", self.toggle_google_key_visibility)
 
-        # Google Vision JSON Key (Placed but initially hidden)
+        # Google Vision JSON Key
         self.google_key_label = ttk.Label(config_frame, text="Google Vision Key:")
-        self.google_key_label.grid(row=4, column=0, sticky=tk.W, pady=8)
+        self.google_key_label.grid(row=4, column=0, sticky=tk.W, pady=6)
         self.google_key_entry = ttk.Entry(config_frame, textvariable=self.json_key_path, state="readonly", width=60)
-        self.google_key_entry.grid(row=4, column=1, columnspan=2, sticky=tk.EW, padx=5, pady=8)
+        self.google_key_entry.grid(row=4, column=1, columnspan=2, sticky=tk.EW, padx=6, pady=6)
         self.google_key_button = ttk.Button(config_frame, text="Browse...", command=self.select_json_key)
-        self.google_key_button.grid(row=4, column=3, padx=5, pady=8)
-        # Hide them initially
+        self.google_key_button.grid(row=4, column=3, padx=6, pady=6)
         self.google_key_label.grid_remove()
         self.google_key_entry.grid_remove()
         self.google_key_button.grid_remove()
-        
-        # --- LLM & Mode Selection Frame ---
-        llm_frame = ttk.LabelFrame(self.main_frame, text="Processing Mode", padding=20)
-        llm_frame.pack(fill=tk.X, pady=(0, 20))
-        llm_frame.columnconfigure(1, weight=1)
 
-        # OCR Only Checkbox
-        self.ocr_only_checkbox = ttk.Checkbutton(llm_frame, text="Perform OCR Only (No LLM)", variable=self.ocr_only_var, command=self.toggle_llm_fields)
-        self.ocr_only_checkbox.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+        # --- Mode Selection Frame ---
+        mode_frame = ttk.Frame(self.main_frame)
+        mode_frame.grid(row=1, column=0, sticky="w", pady=(0, 10), padx=10)
+        self.ocr_only_checkbox = ttk.Checkbutton(mode_frame, text="Perform OCR Only (No LLM)", variable=self.ocr_only_var, command=self.toggle_llm_fields)
+        self.ocr_only_checkbox.pack()
 
-        # LLM Provider
-        self.llm_provider_label = ttk.Label(llm_frame, text="LLM Provider:")
-        self.llm_provider_label.grid(row=1, column=0, sticky=tk.W, pady=8)
-        self.llm_dropdown = ttk.Combobox(llm_frame, values=["OpenAI: gpt-4o", "OpenRouter: deepseek/deepseek-chat"], state="readonly")
+        # --- LLM Frame ---
+        self.llm_frame = ttk.LabelFrame(self.main_frame, text="LLM Processing", padding=20)
+        self.llm_frame.grid(row=2, column=0, sticky="nsew", pady=(0, 20))
+        self.llm_frame.columnconfigure(1, weight=1)
+        self.llm_frame.rowconfigure(2, weight=1)
+
+        self.llm_provider_label = ttk.Label(self.llm_frame, text="LLM Provider:")
+        self.llm_provider_label.grid(row=0, column=0, sticky=tk.W, pady=6)
+        self.llm_dropdown = ttk.Combobox(self.llm_frame, values=["OpenAI: gpt-4o", "OpenRouter: deepseek/deepseek-chat"], state="readonly")
         self.llm_dropdown.set("OpenAI: gpt-4o")
-        self.llm_dropdown.grid(row=1, column=1, sticky=tk.EW, padx=5, pady=8)
+        self.llm_dropdown.grid(row=0, column=1, sticky=tk.EW, padx=6, pady=6)
         self.llm_dropdown.bind("<<ComboboxSelected>>", self.update_api_key_label)
 
-        # API Key Entry
-        self.api_key_label = ttk.Label(llm_frame, textvariable=self.api_key_label_var)
-        self.api_key_label.grid(row=2, column=0, sticky=tk.W, pady=8)
-        self.api_key_entry = ttk.Entry(llm_frame, textvariable=self.api_key, show="*", width=60)
-        self.api_key_entry.grid(row=2, column=1, sticky=tk.EW, padx=5, pady=8)
+        self.api_key_label = ttk.Label(self.llm_frame, textvariable=self.api_key_label_var)
+        self.api_key_label.grid(row=1, column=0, sticky=tk.W, pady=6)
+        self.api_key_entry = ttk.Entry(self.llm_frame, textvariable=self.api_key, show="*", width=60)
+        self.api_key_entry.grid(row=1, column=1, sticky=tk.EW, padx=6, pady=6)
 
-        # Prompt Frame
-        self.prompt_frame = ttk.LabelFrame(llm_frame, text="LLM Prompt", padding=15)
-        self.prompt_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10,0))
-        self.prompt_text = tk.Text(self.prompt_frame, height=5, width=70, font=("Helvetica", 11), relief=tk.SOLID, borderwidth=1, wrap=tk.WORD)
-        self.prompt_text.pack(expand=True, fill=tk.BOTH)
-        
+        # Prompt Frame with Scrollbar
+        self.prompt_frame = ttk.LabelFrame(self.llm_frame, text="LLM Prompt", padding=15)
+        self.prompt_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(10, 0))
+        self.prompt_frame.columnconfigure(0, weight=1)
+        self.prompt_frame.rowconfigure(0, weight=1)
+
+        self.prompt_text = tk.Text(self.prompt_frame, height=6, width=70, wrap=tk.WORD, relief=tk.FLAT, borderwidth=1)
+        self.prompt_text.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+
+        prompt_scrollbar = ttk.Scrollbar(self.prompt_frame, orient="vertical", command=self.prompt_text.yview)
+        prompt_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.prompt_text.config(yscrollcommand=prompt_scrollbar.set)
+
         # --- Action Frame ---
         action_frame = ttk.Frame(self.main_frame)
-        action_frame.pack(fill=tk.X, pady=(10, 0))
-        
+        action_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+
         button_container = ttk.Frame(action_frame)
         button_container.pack(pady=(0, 10))
 
-        # Process Button
-        self.process_button = tk.Button(button_container, text="Start Processing", command=self.process_all,
-                                        bg="#28a745", fg="white", font=("Helvetica", 11, "bold"),
-                                        relief="raised", borderwidth=2, padx=10, pady=5,
-                                        activebackground="#218838", activeforeground="white")
-        self.process_button.pack(side=tk.LEFT, padx=5)
+        self.process_button = ttk.Button(button_container, text="Start Processing", command=self.process_all, style="Accent.TButton")
+        self.process_button.pack(side=tk.LEFT, padx=6)
 
-        # Stop Button
-        self.stop_button = tk.Button(button_container, text="Stop", command=self.stop_processing,
-                                     bg="#dc3545", fg="white", font=("Helvetica", 11, "bold"),
-                                     relief="raised", borderwidth=2, padx=10, pady=5,
-                                     activebackground="#c82333", activeforeground="white", state=tk.DISABLED)
-        self.stop_button.pack(side=tk.LEFT, padx=5)
+        self.stop_button = ttk.Button(button_container, text="Stop", command=self.stop_processing, style="Danger.TButton", state=tk.DISABLED)
+        self.stop_button.pack(side=tk.LEFT, padx=6)
 
-        # Progress Bar and Status
-        status_label = ttk.Label(action_frame, textvariable=self.status_var, font=("Helvetica", 10, "italic"))
+        status_label = ttk.Label(action_frame, textvariable=self.status_var, font=(default_font.cget("family"), 10, "italic"))
         status_label.pack()
-        
-        elapsed_label = ttk.Label(action_frame, textvariable=self.elapsed_time_var, font=("Helvetica", 10, "italic"))
+
+        elapsed_label = ttk.Label(action_frame, textvariable=self.elapsed_time_var, font=(default_font.cget("family"), 10, "italic"))
         elapsed_label.pack(pady=(0, 5))
 
         progress_bar = ttk.Progressbar(action_frame, variable=self.progress_var, maximum=100)
         progress_bar.pack(fill=tk.X, pady=5)
 
+
+
     def toggle_llm_fields(self):
-        """Enable or disable LLM-related fields based on the checkbox."""
+        """Hides or shows the entire LLM section."""
         if self.ocr_only_var.get():
-            state = tk.DISABLED
+            self.llm_frame.grid_remove()
+            # Adjust row configuration to allow bottom frame to move up
+            self.main_frame.rowconfigure(2, weight=0)
         else:
-            state = tk.NORMAL
-        
-        self.llm_dropdown.config(state=state)
-        self.api_key_entry.config(state=state)
-        self.prompt_text.config(state=state)
-        # Also toggle labels for visual consistency
-        self.llm_provider_label.config(state=state)
-        self.api_key_label.config(state=state)
-        self.prompt_frame.config(state=state)
+            self.llm_frame.grid()
+            # Restore row configuration
+            self.main_frame.rowconfigure(2, weight=1)
 
 
     def _update_timer(self):
