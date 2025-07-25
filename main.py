@@ -1,7 +1,7 @@
 # This code is cross platform.
 # To run the build, do as follows:
-# For macOS: "pyinstaller --name="OCR-LLM Processor" --windowed --icon="YourIcon.icns" --add-data="/opt/homebrew/opt/tesseract/share/tessdata:tessdata" main.py")
-# For Windows: "pyinstaller --name="OCR-LLM Processor" --windowed --icon="YourIcon.ico" --add-data="C:\Program Files\Tesseract-OCR\tessdata;tessdata" main.py")
+# For macOS: "pyinstaller --name="OCR-LLM Processor" --windowed --icon="YourIcon.icns" --add-data="/opt/homebrew/opt/tesseract/share/tessdata:tessdata" main.py"
+# For Windows: "pyinstaller --name="OCR-LLM Processor" --windowed --icon="YourIcon.ico" --add-data="C:\Program Files\Tesseract-OCR\tessdata;tessdata" main.py"
 
 # Windows users should input the path for Tesseract as C:/Program Files/Tesseract-OCR/tesseract.exe
 # Mac users must first install Tesseract using Homebrew: `brew install tesseract`, then set the path to /opt/homebrew/bin/tesseract

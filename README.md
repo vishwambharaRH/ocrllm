@@ -20,6 +20,18 @@ This application provides a full pipeline for digitizing and refining scanned PD
 
 ---
 
+## Working
+
+- Target PDF is acquired and output text file is path chosen.
+- Prior dependency files, prompts, and keys are duly input.
+- PDF is split into required number of pages, images are saved in a temporary directory.
+- OCR is carried out sequentially on all the images.
+- The text output is saved in a temporary .txt, which may or may not be the final file based pn the options selected.
+- The text is preprocessed and split into multiple batches to send to the LLM, along with the prompt.
+- The LLM-processed text is entered into the output text file.
+
+---
+
 ## Dependencies
 
 ### ✅ Tesseract OCR
