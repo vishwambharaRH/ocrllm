@@ -1,17 +1,68 @@
 # OCR+LLM Processor for Documents
 
-## Functionality
-This application is an OCR+LLM proofreading/editing pipeline for the digitisation of non-textlayered PDFs.
+## Overview
+This application provides a full pipeline for digitizing and refining scanned PDFs (non-text-layered) using Optical Character Recognition (OCR) and optional post-processing via Large Language Models (LLMs).
+
+---
+
+## Features
+
+- Extract text from scanned PDFs using:
+  - **Tesseract OCR**
+  - **Google Cloud Vision API**
+- Post-process extracted text using any LLM via:
+  - OpenAI API
+  - OpenRouter API
+  - Other compatible endpoints
+- Full UI for selecting PDF, choosing OCR/LLM engines, setting prompts, and saving results
+- Option to perform OCR-only (bypassing LLM)
+- Cross-platform: macOS `.app.zip` and Windows `.exe` releases available
+
+---
 
 ## Dependencies
-### Tesseract
-Install the binaries for Tesseract-OCR from [here](https://tesseract-ocr.github.io/tessdoc/Installation.html), follow the instructions as given.
 
-### Vision
-Get a Google Cloud Suite membership and use your Google Vision key that is generatable from the project that you are working on.
+### ✅ Tesseract OCR
+- Install Tesseract from the [official documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
+- Ensure Tesseract is available in your system PATH.
 
-## How to Install
-For macOS, install the app.zip file, for Windows, install the .exe file. Navigate to the release window.
+### ✅ Google Cloud Vision
+- Sign up for Google Cloud Suite.
+- Create a project, enable the **Vision API**, and download your `.json` service account key.
 
-## Warning
-This build is not fully ready yet, some bugs with Tesseract are expected. These bugs will be rectified in future releases.
+---
+
+## Installation
+
+### macOS
+1. Download `app.zip` from the [Releases](#) section.
+2. Unzip and move the app to `/Applications`.
+
+### Windows
+1. Download the `.exe` file from the [Releases](#) section.
+2. Double-click to install or run as needed.
+
+---
+
+## How to Use
+
+1. **Launch the App.**
+2. Click **Browse** to select your target PDF file.
+3. Click **Save As** to choose a directory and filename for the output `.txt` file.
+4. Choose the OCR engine:
+    - **Tesseract**: No extra setup required (beyond installation).
+    - **Google Vision**: Upload your `.json` service account key when prompted.
+5. (Optional) Tick the **OCR only** checkbox if you do **not** want LLM processing.
+6. If using an LLM:
+    - Enter a valid **API key** (Note: OpenAI and OpenRouter use different key formats).
+    - Provide your custom prompt, or refer to examples in `prompts.txt`.
+7. Click **Start Processing** to begin.
+8. If needed, click **Stop** to cancel ongoing processing.
+
+---
+
+## Issues
+
+- Some Tesseract-related bugs are known and currently being worked on.
+- Future builds will include more robust error handling and UI feedback.
+

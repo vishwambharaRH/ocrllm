@@ -28,28 +28,37 @@ import time # To track elapsed time
 def configure_tesseract_path():
     """
     Finds and sets the path for the Tesseract executable. When the app is bundled
-    with PyInstaller, it points to the Tesseract engine that has been included
-    inside the application bundle itself.
+    with PyInstaller, it points to the Tesseract engine inside the bundle.
+    If run as a script, it checks standard installation paths on Windows and macOS.
     """
     # If the app is running as a bundled executable (created by PyInstaller)
     if getattr(sys, 'frozen', False):
-        # The `_MEIPASS` attribute is a temporary directory created by PyInstaller at runtime
         bundle_dir = sys._MEIPASS
-
-        # Set the path to the Tesseract executable within the bundle
         if sys.platform == "win32":
             tesseract_path = os.path.join(bundle_dir, 'tesseract', 'tesseract.exe')
         elif sys.platform == "darwin":
             tesseract_path = os.path.join(bundle_dir, 'tesseract', 'tesseract')
         
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
-
-        # Also, tell Tesseract where to find its data files (which we also bundled)
         tessdata_dir = os.path.join(bundle_dir, 'tessdata')
         os.environ['TESSDATA_PREFIX'] = tessdata_dir
     
-    # If running as a normal script, pytesseract will try to find Tesseract in the system's PATH
-    # or we rely on the user having it installed in a standard location.
+    # If running as a normal script, check default install locations
+    # to avoid issues where Tesseract is not in the system's PATH.
+    elif sys.platform == "win32":
+        tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        if os.path.exists(tesseract_path):
+            pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    elif sys.platform == "darwin":
+        # Common Homebrew paths for Tesseract on macOS
+        tesseract_paths = [
+            '/opt/homebrew/bin/tesseract', # For Apple Silicon Macs
+            '/usr/local/bin/tesseract'     # For Intel Macs
+        ]
+        for path in tesseract_paths:
+            if os.path.exists(path):
+                pytesseract.pytesseract.tesseract_cmd = path
+                return
 
 # ========== APPLICATION CLASS ==========
 
