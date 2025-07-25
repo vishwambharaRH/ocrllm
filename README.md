@@ -34,11 +34,11 @@ This application provides a full pipeline for digitizing and refining scanned PD
 
 ## Dependencies
 
-### ✅ Tesseract OCR
+### Tesseract OCR
 - Install Tesseract from the [official documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
 - Ensure Tesseract is available in your system PATH.
 
-### ✅ Google Cloud Vision
+### Google Cloud Vision
 - Sign up for Google Cloud Suite.
 - Create a project, enable the **Vision API**, and download your `.json` service account key.
 
