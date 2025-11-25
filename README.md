@@ -3,7 +3,11 @@
 ## Overview
 This application provides a full pipeline for digitizing and refining scanned PDFs (non-text-layered) using Optical Character Recognition (OCR) and optional post-processing via Large Language Models (LLMs).
 
----
+> [!NOTE]
+> Bugs have been noted with Tesseract OCR in Indic languages. Google Cloud Vision is recommended for better accuracy in such cases.
+> Any bugs or feature requests can be reported in the Issues section. 
+> For the moment, please be advised to not use Tesseract.
+
 
 ## Features
 
